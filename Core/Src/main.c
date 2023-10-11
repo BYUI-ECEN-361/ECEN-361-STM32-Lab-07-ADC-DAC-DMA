@@ -50,6 +50,8 @@ UART_HandleTypeDef huart2;
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 /* Converted value declaration */
+#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+
 
 #define BUFLEN 4
 volatile uint16_t aResultDMA[BUFLEN];
@@ -153,6 +155,8 @@ int main(void)
 	if(HAL_TIM_Base_Start_IT(&htim7) != HAL_OK)
 		while(1);
 
+printf("\033\143");
+printf("Welcome to ECEN-361 Lab-08 DTMF Decoder\n\r\n\r");
 	
   /* USER CODE END 2 */
 
@@ -464,11 +468,26 @@ int fputc(int c, FILE *stream)
 }
 
 
+/**
+  * @brief  Retargets the C library printf function to the USART.
+  * @param  None
+  * @retval None
+  */
+PUTCHAR_PROTOTYPE
+{
+  /* Place your implementation of fputc here */
+  /* e.g. write a character to the USART1 and Loop until the end of transmission */
+  HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, 0xFFFF);
+
+  return ch;
+}
+
+
 /* USER CODE END 4 */
 
 /**
   * @brief  Period elapsed callback in non blocking mode
-  * @note   This function is called  when TIM2 interrupt took place, inside
+  * @note   This function is called  when TIM6 interrupt took place, inside
   * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
   * a global variable "uwTick" used as application time base.
   * @param  htim : TIM handle
@@ -500,7 +519,7 @@ int err;
 	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
 
   /* USER CODE END Callback 0 */
-  if (htim->Instance == TIM2) {
+  if (htim->Instance == TIM6) {
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
