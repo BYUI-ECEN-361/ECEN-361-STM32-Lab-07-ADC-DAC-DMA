@@ -21,8 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include <stdio.h>
-#include "DTMF.h"
+#include "sinewavetable.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -32,7 +31,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+int sindex = 0;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -41,68 +40,35 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-ADC_HandleTypeDef hadc1;
+DAC_HandleTypeDef hdac1;
+DMA_HandleTypeDef hdma_dac_ch1;
 
-TIM_HandleTypeDef htim7;
+TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-/* Private variables ---------------------------------------------------------*/
-/* Converted value declaration */
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
-
-
-#define BUFLEN 4
-volatile uint16_t aResultDMA[BUFLEN];
-
-/*  DTMF Digit encoding */
-static char DTMFchar[16] = {
-  '1', '2', '3', 'A', 
-  '4', '5', '6', 'B', 
-  '7', '8', '9', 'C', 
-  '*', '0', '#', 'D', 
-};
-
-
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
-static void MX_ADC1_Init(void);
-static void MX_TIM7_Init(void);
+static void MX_DAC1_Init(void);
+static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
-/* Private function prototypes -----------------------------------------------*/
+void SW_SineWave(void * argument);
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void actuateOutput(char dtmfcode)
-{
-	switch(dtmfcode){
-		case '1' :
-			HAL_GPIO_WritePin(OUT1_GPIO_Port, OUT1_Pin, GPIO_PIN_RESET);
-			break;
-		
-		case '2' :
-			HAL_GPIO_WritePin(OUT1_GPIO_Port, OUT1_Pin, GPIO_PIN_SET);
-			break;
-		
-		case '4' :
-			HAL_GPIO_WritePin(OUT2_GPIO_Port, OUT2_Pin, GPIO_PIN_RESET);
-			break;
 
-		case '5' :
-			HAL_GPIO_WritePin(OUT2_GPIO_Port, OUT2_Pin, GPIO_PIN_SET);
-			break;
+/************* GLOBALS **************/
+int sinewave_table_index = 0;
 
-		default:
-			break;
-	}
-}
 /* USER CODE END 0 */
 
 /**
@@ -133,59 +99,54 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART2_UART_Init();
-  MX_ADC1_Init();
-  MX_TIM7_Init();
+  MX_DAC1_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-	
-	printf("Welcome to DTMF decoder \r\n");
-	
-	
-	/* Run ADC calibration */
-	if(HAL_ADCEx_Calibration_Start(&hadc1,ADC_SINGLE_ENDED) != HAL_OK)
-		while(1);
 
-#ifdef USE_DMA
-	/* Start ADC DMA */
-	if(HAL_ADC_Start_DMA(&hadc1, (uint32_t*)aResultDMA, BUFLEN) != HAL_OK)
-		while(1);
-#endif
-	
-	/* Start 8kHz timer */
-	if(HAL_TIM_Base_Start_IT(&htim7) != HAL_OK)
-		while(1);
 
-printf("\033\143");
-printf("Welcome to ECEN-361 Lab-08 DTMF Decoder\n\r\n\r");
-	
+  // HAL_DAC_Start_DMA(&hdac1,DAC_CHANNEL_1);
+
+
+  HAL_TIM_Base_Start_IT(&htim2);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+  // HAL_GPIO_WritePin(LD2_GPIO_Port,LD2_Pin,1);
+
+  printf("\033\143"); printf("Welcome to ECEN-361 SineWave Generator\n\r");
+
+  /* Setup the DMA */
+
+  if (HAL_DMA_Init(&hdma_dac_ch1) != HAL_OK)
+ 	  {while(1);}
+
+   // HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*) sineLookupTable_1000_pts, sizeof(sineLookupTable_1000_pts),DAC_ALIGN_12B_R);
+   HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*) sineLookupTable_1000_pts, 1000,DAC_ALIGN_12B_R);
+   // HAL_DMA_Start_IT(&hdma_dac_ch1, (uint32_t) &sineLookupTable_100_pts, (uint32_t) &hdac1, sizeof(sineLookupTable_100_pts));
+   //HAL_DMA_PollForTransfer(&hdma_memtomem_dma1_channel1, );
+
   while (1)
   {
-
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-		
-		/* run DTMF decoder */
-		if (dail1.AIindex >= dail1.AIcheck)  {
-			DTMF_Detect (&dail1);
-		} 
-
-		if (dail1.early)
-			HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
-		else
-			HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
-
-		if (dail1.new){
-			printf ("%c ", DTMFchar[dail1.digit & 0x0F]);
-			actuateOutput(DTMFchar[dail1.digit & 0x0F]);
-			dail1.new = 0;
-		}
-	}
-
+	 // HAL_Delay(1000);
+	  // HAL_GPIO_TogglePin(LD2_GPIO_Port,LD2_Pin);
+	  // HAL_DMA_PollForTransfer()
+	/*
+	 *
+	  if ((sindex % 100) == 0) printf("Setting value: %d\n\r",sindex);
+	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R,(uint32_t) sineLookup[sindex++]);
+	HAL_DAC_Start(&hdac1,DAC_CHANNEL_1);
+	if (sindex >=SINE_WAVE_SAMPLES ) {sindex=0;}
+	HAL_Delay(1);
+	 */
+  }
   /* USER CODE END 3 */
 }
 
@@ -239,107 +200,91 @@ void SystemClock_Config(void)
 }
 
 /**
-  * @brief ADC1 Initialization Function
+  * @brief DAC1 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_ADC1_Init(void)
+static void MX_DAC1_Init(void)
 {
 
-  /* USER CODE BEGIN ADC1_Init 0 */
+  /* USER CODE BEGIN DAC1_Init 0 */
 
-  /* USER CODE END ADC1_Init 0 */
+  /* USER CODE END DAC1_Init 0 */
 
-  ADC_MultiModeTypeDef multimode = {0};
-  ADC_ChannelConfTypeDef sConfig = {0};
+  DAC_ChannelConfTypeDef sConfig = {0};
 
-  /* USER CODE BEGIN ADC1_Init 1 */
+  /* USER CODE BEGIN DAC1_Init 1 */
 
-  /* USER CODE END ADC1_Init 1 */
+  /* USER CODE END DAC1_Init 1 */
 
-  /** Common config
+  /** DAC Initialization
   */
-  hadc1.Instance = ADC1;
-  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
-  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
-  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
-  hadc1.Init.LowPowerAutoWait = DISABLE;
-  hadc1.Init.ContinuousConvMode = ENABLE;
-  hadc1.Init.NbrOfConversion = 1;
-  hadc1.Init.DiscontinuousConvMode = DISABLE;
-  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
-  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc1.Init.DMAContinuousRequests = DISABLE;
-  hadc1.Init.Overrun = ADC_OVR_DATA_PRESERVED;
-  hadc1.Init.OversamplingMode = DISABLE;
-  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  hdac1.Instance = DAC1;
+  if (HAL_DAC_Init(&hdac1) != HAL_OK)
   {
     Error_Handler();
   }
 
-  /** Configure the ADC multi-mode
+  /** DAC channel OUT1 config
   */
-  multimode.Mode = ADC_MODE_INDEPENDENT;
-  if (HAL_ADCEx_MultiModeConfigChannel(&hadc1, &multimode) != HAL_OK)
+  sConfig.DAC_SampleAndHold = DAC_SAMPLEANDHOLD_DISABLE;
+  sConfig.DAC_Trigger = DAC_TRIGGER_T2_TRGO;
+  sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_DISABLE;
+  sConfig.DAC_ConnectOnChipPeripheral = DAC_CHIPCONNECT_DISABLE;
+  sConfig.DAC_UserTrimming = DAC_TRIMMING_FACTORY;
+  if (HAL_DAC_ConfigChannel(&hdac1, &sConfig, DAC_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
   }
+  /* USER CODE BEGIN DAC1_Init 2 */
+  // sConfig.DAC_ConnectOnChipPeripheral = DAC_CHIPCONNECT_ENABLE;
 
-  /** Configure Regular Channel
-  */
-  sConfig.Channel = ADC_CHANNEL_1;
-  sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
-  sConfig.SingleDiff = ADC_SINGLE_ENDED;
-  sConfig.OffsetNumber = ADC_OFFSET_NONE;
-  sConfig.Offset = 0;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN ADC1_Init 2 */
-
-  /* USER CODE END ADC1_Init 2 */
+  /* USER CODE END DAC1_Init 2 */
 
 }
 
 /**
-  * @brief TIM7 Initialization Function
+  * @brief TIM2 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_TIM7_Init(void)
+static void MX_TIM2_Init(void)
 {
 
-  /* USER CODE BEGIN TIM7_Init 0 */
+  /* USER CODE BEGIN TIM2_Init 0 */
 
-  /* USER CODE END TIM7_Init 0 */
+  /* USER CODE END TIM2_Init 0 */
 
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
 
-  /* USER CODE BEGIN TIM7_Init 1 */
+  /* USER CODE BEGIN TIM2_Init 1 */
 
-  /* USER CODE END TIM7_Init 1 */
-  htim7.Instance = TIM7;
-  htim7.Init.Prescaler = 5;
-  htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim7.Init.Period = 999;
-  htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 79;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 1000;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
   {
     Error_Handler();
   }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim7, &sMasterConfig) != HAL_OK)
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN TIM7_Init 2 */
+  /* USER CODE BEGIN TIM2_Init 2 */
 
-  /* USER CODE END TIM7_Init 2 */
+  /* USER CODE END TIM2_Init 2 */
 
 }
 
@@ -379,6 +324,22 @@ static void MX_USART2_UART_Init(void)
 }
 
 /**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Channel3_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel3_IRQn);
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -395,78 +356,29 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, OUT1_Pin|OUT2_Pin|GPIO_Output_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
-
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : OUT1_Pin OUT2_Pin GPIO_Output_Pin */
-  GPIO_InitStruct.Pin = OUT1_Pin|OUT2_Pin|GPIO_Output_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  /*Configure GPIO pin : PC9 */
+  GPIO_InitStruct.Pin = GPIO_PIN_9;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.Alternate = GPIO_AF3_TIM8;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : ADC_IN0_Pin */
-  GPIO_InitStruct.Pin = ADC_IN0_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(ADC_IN0_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : LD2_Pin */
-  GPIO_InitStruct.Pin = LD2_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
-void hold_HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
-
-
-	int err;
-
-#ifdef USE_DMA
-	dail1.AInput[dail1.AIindex & (DTMFsz-1)] = aResultDMA[0];
-#else
-
-	err = HAL_ADC_Start(&hadc1);
-	if(err != HAL_OK)
-		while(1);
-
-	err = HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
-
-	dail1.AInput[dail1.AIindex & (DTMFsz-1)] = HAL_ADC_GetValue(&hadc1);
-	dail1.AIindex++;
-
-	err = HAL_ADC_Stop(&hadc1);
-	if(err != HAL_OK)
-		while(1);
-#endif
-	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
-}
-
-
-int fputc(int c, FILE *stream)
-{
-	uint8_t data = c;
-
-	HAL_UART_Transmit(&huart2, &data, 1, 0xffff);
-	return c;
-}
-
 
 /**
   * @brief  Retargets the C library printf function to the USART.
@@ -483,49 +395,48 @@ PUTCHAR_PROTOTYPE
 }
 
 
-/* USER CODE END 4 */
 
-/**
-  * @brief  Period elapsed callback in non blocking mode
-  * @note   This function is called  when TIM6 interrupt took place, inside
-  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
-  * a global variable "uwTick" used as application time base.
-  * @param  htim : TIM handle
-  * @retval None
-  */
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+void HAL_DAC_ConvCpltCallbackCh1(DAC_HandleTypeDef *hdac)
 {
-  /* USER CODE BEGIN Callback 0 */
-
-int err;
-
-#ifdef USE_DMA
-	dail1.AInput[dail1.AIindex & (DTMFsz-1)] = aResultDMA[0];
-#else
-
-	err = HAL_ADC_Start(&hadc1);
-	if(err != HAL_OK)
-		while(1);
-
-	err = HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
-
-	dail1.AInput[dail1.AIindex & (DTMFsz-1)] = HAL_ADC_GetValue(&hadc1);
-	dail1.AIindex++;
-
-	err = HAL_ADC_Stop(&hadc1);
-	if(err != HAL_OK)
-		while(1);
-#endif
-	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
-
-  /* USER CODE END Callback 0 */
-  if (htim->Instance == TIM6) {
-    HAL_IncTick();
-  }
-  /* USER CODE BEGIN Callback 1 */
-
-  /* USER CODE END Callback 1 */
+	/* Fill this in when I know what to do if I get here */
+// printf("              FINISHED DAC OUT\n\n");
 }
+
+
+void SW_SineWave(void * arguments)
+	{
+	HAL_DAC_Start(&hdac1, DAC_CHANNEL_1);
+	while(true)
+		{
+		for(int sindex=0;sindex<=SINE_WAVE_SAMPLES;sindex++)
+			{
+			  //HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R,(uint32_t) sineLookup[sindex]);
+			  HAL_Delay(1);
+			}
+
+		}
+	}
+
+
+
+// Callback: timer has rolled over
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+	{
+  if (htim == &htim2 )
+		{
+		//HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R,(uint32_t) sineLookup[sindex++]);
+		//HAL_DAC_Start(&hdac1,DAC_CHANNEL_1);
+	  	  int u = 1;
+		// if (sindex >=SINE_WAVE_SAMPLES ) {sindex=0;}
+		}
+	}
+
+
+
+  // HAL_DMA_PollForTransfer(&hdma_memtomem_dma1_channel1, );
+
+/* USER CODE END 4 */
 
 /**
   * @brief  This function is executed in case of error occurrence.
@@ -535,7 +446,8 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
-  while(1)
+  __disable_irq();
+  while (1)
   {
   }
   /* USER CODE END Error_Handler_Debug */
@@ -553,7 +465,7 @@ void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
-     tex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */

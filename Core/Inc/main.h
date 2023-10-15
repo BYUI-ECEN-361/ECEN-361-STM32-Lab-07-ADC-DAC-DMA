@@ -31,7 +31,8 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdio.h>
+#include <stdbool.h>
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -41,6 +42,7 @@ extern "C" {
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
+
 
 /* USER CODE END EC */
 
@@ -59,20 +61,11 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define B1_Pin GPIO_PIN_13
 #define B1_GPIO_Port GPIOC
-#define OUT1_Pin GPIO_PIN_2
-#define OUT1_GPIO_Port GPIOC
-#define OUT2_Pin GPIO_PIN_3
-#define OUT2_GPIO_Port GPIOC
-#define ADC_IN0_Pin GPIO_PIN_0
-#define ADC_IN0_GPIO_Port GPIOA
+#define B1_EXTI_IRQn EXTI15_10_IRQn
 #define USART_TX_Pin GPIO_PIN_2
 #define USART_TX_GPIO_Port GPIOA
 #define USART_RX_Pin GPIO_PIN_3
 #define USART_RX_GPIO_Port GPIOA
-#define LD2_Pin GPIO_PIN_5
-#define LD2_GPIO_Port GPIOA
-#define GPIO_Output_Pin GPIO_PIN_4
-#define GPIO_Output_GPIO_Port GPIOC
 #define TMS_Pin GPIO_PIN_13
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14
