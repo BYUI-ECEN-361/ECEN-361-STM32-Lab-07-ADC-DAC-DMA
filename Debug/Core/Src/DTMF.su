@@ -1,5 +1,0 @@
-../Core/Src/DTMF.c:51:21:Goertzel	56	static
-../Core/Src/DTMF.c:83:13:GainControl	40	static
-../Core/Src/DTMF.c:131:12:chk_valid	24	static
-../Core/Src/DTMF.c:149:22:DTMF_digit	48	static
-../Core/Src/DTMF.c:245:6:DTMF_Detect	24	static
