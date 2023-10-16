@@ -423,13 +423,13 @@ void SW_SineWave(void * arguments)
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	{
-  // if (htim == &htim2 )
-		// {
+  if (htim == &htim2 )
+		{
 		//HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R,(uint32_t) sineLookup[sindex++]);
 		//HAL_DAC_Start(&hdac1,DAC_CHANNEL_1);
-	  	  // int u = 1;
+	  	  int u = 1;
 		// if (sindex >=SINE_WAVE_SAMPLES ) {sindex=0;}
-		// }
+		}
 	}
 
 
