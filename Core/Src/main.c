@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "sinewavetable.h"
+#include "MultiFunctionShield.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -44,6 +45,7 @@ DAC_HandleTypeDef hdac1;
 DMA_HandleTypeDef hdma_dac_ch1;
 
 TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim17;
 
 UART_HandleTypeDef huart2;
 
@@ -58,6 +60,7 @@ static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_DAC1_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_TIM17_Init(void);
 /* USER CODE BEGIN PFP */
 void SW_SineWave(void * argument);
 
@@ -68,6 +71,10 @@ void SW_SineWave(void * argument);
 
 /************* GLOBALS **************/
 int sinewave_table_index = 0;
+
+enum points_per_cycle {ten=10,hundred=100,thousand=1000};
+enum points_per_cycle points_per_output_wave  = thousand;
+
 
 /* USER CODE END 0 */
 
@@ -103,6 +110,7 @@ int main(void)
   MX_USART2_UART_Init();
   MX_DAC1_Init();
   MX_TIM2_Init();
+  MX_TIM17_Init();
   /* USER CODE BEGIN 2 */
 
 
@@ -119,6 +127,13 @@ int main(void)
   // HAL_GPIO_WritePin(LD2_GPIO_Port,LD2_Pin,1);
 
   printf("\033\143"); printf("Welcome to ECEN-361 SineWave Generator\n\r");
+
+  // Start timer
+  MultiFunctionShield_Clear();								// Clear the 7-seg display
+  HAL_TIM_Base_Start_IT(&htim17);							// LED SevenSeg cycle thru them
+  Clear_LEDs();
+  // MultiFunctionShield_Display(points_per_output_wave);
+  MultiFunctionShield_Display(1234);
 
   /* Setup the DMA */
 
@@ -263,9 +278,9 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 79		;
+  htim2.Init.Prescaler = 79;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 100;
+  htim2.Init.Period = 1000;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -286,6 +301,38 @@ static void MX_TIM2_Init(void)
   /* USER CODE BEGIN TIM2_Init 2 */
 
   /* USER CODE END TIM2_Init 2 */
+
+}
+
+/**
+  * @brief TIM17 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM17_Init(void)
+{
+
+  /* USER CODE BEGIN TIM17_Init 0 */
+
+  /* USER CODE END TIM17_Init 0 */
+
+  /* USER CODE BEGIN TIM17_Init 1 */
+
+  /* USER CODE END TIM17_Init 1 */
+  htim17.Instance = TIM17;
+  htim17.Init.Prescaler = 800-1;
+  htim17.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim17.Init.Period = 100;
+  htim17.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim17.Init.RepetitionCounter = 0;
+  htim17.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim17) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM17_Init 2 */
+
+  /* USER CODE END TIM17_Init 2 */
 
 }
 
@@ -357,11 +404,39 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, LED_D1_Pin|LED_D2_Pin|LED_D3_Pin|SevenSeg_CLK_Pin
+                          |SevenSeg_DATA_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, SevenSeg_LATCH_Pin|LED_D4_Pin, GPIO_PIN_RESET);
+
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : Button_1_Pin */
+  GPIO_InitStruct.Pin = Button_1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(Button_1_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : LED_D1_Pin LED_D2_Pin LED_D3_Pin SevenSeg_CLK_Pin
+                           SevenSeg_DATA_Pin */
+  GPIO_InitStruct.Pin = LED_D1_Pin|LED_D2_Pin|LED_D3_Pin|SevenSeg_CLK_Pin
+                          |SevenSeg_DATA_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : Button_3_Pin */
+  GPIO_InitStruct.Pin = Button_3_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(Button_3_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PC9 */
   GPIO_InitStruct.Pin = GPIO_PIN_9;
@@ -371,7 +446,20 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Alternate = GPIO_AF3_TIM8;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : SevenSeg_LATCH_Pin LED_D4_Pin */
+  GPIO_InitStruct.Pin = SevenSeg_LATCH_Pin|LED_D4_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
   /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
@@ -424,6 +512,7 @@ void SW_SineWave(void * arguments)
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	{
+  if (htim == &htim17 ) { MultiFunctionShield__ISRFunc(); }
   if (htim == &htim2 )
 		{
 		//HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R,(uint32_t) sineLookup[sindex++]);
