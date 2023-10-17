@@ -73,7 +73,7 @@ void SW_SineWave(void * argument);
 int sinewave_table_index = 0;
 
 enum points_per_cycle {ten=10,hundred=100,thousand=1000};
-enum points_per_cycle points_per_output_wave  = thousand;
+enum points_per_cycle points_to_use_in_a_cycle  = thousand;
 
 
 /* USER CODE END 0 */
@@ -506,7 +506,53 @@ void SW_SineWave(void * arguments)
 		}
 	}
 
+void Start_the_ADC_DMA(void)
+	{
+	 //First stop it, just to be clean (if running)
+	HAL_DAC_Stop_DMA(&hdac1, DAC_CHANNEL_1);
+	// Just use the global
 
+	switch(points_to_use_in_a_cycle)
+		{
+		case ten:
+		   HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*) sineLookupTable_10_pts, 10,DAC_ALIGN_12B_R);
+			break;
+		case hundred:
+		   HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*) sineLookupTable_100_pts, 100,DAC_ALIGN_12B_R);
+			break;
+		case thousand:
+		   HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*) sineLookupTable_1000_pts, 1000,DAC_ALIGN_12B_R);
+			break;
+		}
+	}
+
+
+
+void change_points_per_cycle()
+	{
+	/*
+	 *  This routine just cycles thru the 3 different sets of points that
+	 *  can be used to generate a sine wave.
+	 *  The steps to change:
+	 *  1.) Change the variable that says what set we're on to the next one
+	 *  2.) Change the DMA Call to point to the address of that set
+	 *      and the new number of points
+	 *
+	 *  3.) Re-display the new set on the 7-Seg.  It'll show '10', or '100', or '1000'
+	 */
+	switch(points_to_use_in_a_cycle)
+		{
+		case ten:
+			points_to_use_in_a_cycle = hundred;
+			break;
+		case hundred:
+			points_to_use_in_a_cycle = thousand;
+			break;
+		case thousand:
+			points_to_use_in_a_cycle = ten;
+			break;
+		}
+	}
 
 // Callback: timer has rolled over
 
@@ -521,6 +567,26 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		// if (sindex >=SINE_WAVE_SAMPLES ) {sindex=0;}
 		}
 	}
+
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+	{
+	// When the DAC is being used, Button_2 is unavailable.
+	// The other two generate GPIO interrupts
+	// Don't spend much time in the ISR because there are other interrupts happening
+	switch(GPIO_Pin)
+	{
+	case Button_1_Pin:
+		change_points_per_cycle();
+		break;
+	case Button_3_Pin:
+		// Button_3 changes the Frequency of the DAC, going thru different
+		// speeds
+		break;
+	default:
+      __NOP();
+	}
+}
 
 
 
