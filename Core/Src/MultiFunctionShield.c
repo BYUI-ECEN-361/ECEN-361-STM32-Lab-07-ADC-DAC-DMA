@@ -58,7 +58,8 @@ const uint8_t SEGMENT_MINUS = 0xBF;
 const uint8_t SEGMENT_SELECT[] = {0xF1,0xF2,0xF4,0xF8};                               // Ziffernposition (gemeinsame Anode, LSB)
 volatile uint8_t ActDigit = 0;
 volatile uint8_t SEGMENT_VALUE[4];
-const uint8_t BLANK_OR_ZERO_FILL = SEGMENT_ZERO;
+// const uint8_t BLANK_OR_ZERO_FILL = SEGMENT_ZERO;
+const uint8_t BLANK_OR_ZERO_FILL = SEGMENT_BLANK;
 
 //static MultiFunctionShield *instance;
 

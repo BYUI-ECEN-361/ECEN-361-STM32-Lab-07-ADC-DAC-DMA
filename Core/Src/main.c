@@ -27,6 +27,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+void Start_the_ADC_DMA(void);
 
 /* USER CODE END PTD */
 
@@ -133,16 +134,20 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim17);							// LED SevenSeg cycle thru them
   Clear_LEDs();
   // MultiFunctionShield_Display(points_per_output_wave);
-  MultiFunctionShield_Display(1234);
+  MultiFunctionShield_Display(points_to_use_in_a_cycle);
 
   /* Setup the DMA */
 
   if (HAL_DMA_Init(&hdma_dac_ch1) != HAL_OK)
  	  {while(1);}
 
+  Start_the_ADC_DMA();
+
    // HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*) sineLookupTable_1000_pts, 1000,DAC_ALIGN_12B_R);
 	   //HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*) sineLookupTable_100_pts, 100,DAC_ALIGN_12B_R);
-	   HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*) sineLookupTable_10_pts, 10,DAC_ALIGN_12B_R);
+
+	   //            HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*) sineLookupTable_10_pts, 10,DAC_ALIGN_12B_R);
+
    // HAL_DMA_Start_IT(&hdma_dac_ch1, (uint32_t) &sineLookupTable_100_pts, (uint32_t) &hdac1, sizeof(sineLookupTable_100_pts));
    //HAL_DMA_PollForTransfer(&hdma_memtomem_dma1_channel1, );
 
@@ -506,6 +511,7 @@ void SW_SineWave(void * arguments)
 		}
 	}
 
+
 void Start_the_ADC_DMA(void)
 	{
 	 //First stop it, just to be clean (if running)
@@ -525,7 +531,6 @@ void Start_the_ADC_DMA(void)
 			break;
 		}
 	}
-
 
 
 void change_points_per_cycle()
@@ -552,6 +557,8 @@ void change_points_per_cycle()
 			points_to_use_in_a_cycle = ten;
 			break;
 		}
+		Start_the_ADC_DMA();
+		MultiFunctionShield_Display(points_to_use_in_a_cycle);
 	}
 
 // Callback: timer has rolled over
