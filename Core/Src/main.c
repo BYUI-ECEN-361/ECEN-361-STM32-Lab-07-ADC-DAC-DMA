@@ -409,7 +409,7 @@ void SW_SineWave(void * arguments)
 	HAL_DAC_Start(&hdac1, DAC_CHANNEL_1);
 	while(true)
 		{
-		for(int sindex=0;sindex<=SINE_WAVE_SAMPLES;sindex++)
+		for(int sindex=0;sindex<=1000;sindex++)
 			{
 			  //HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R,(uint32_t) sineLookup[sindex]);
 			  HAL_Delay(1);
@@ -428,7 +428,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		{
 		//HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R,(uint32_t) sineLookup[sindex++]);
 		//HAL_DAC_Start(&hdac1,DAC_CHANNEL_1);
-	  	  int u = 1;
+	  	// int u = 1;
 		// if (sindex >=SINE_WAVE_SAMPLES ) {sindex=0;}
 		}
 	}
