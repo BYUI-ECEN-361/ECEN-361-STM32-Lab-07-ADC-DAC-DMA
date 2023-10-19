@@ -35,6 +35,7 @@ void Start_the_DAC_DMA(void);
 /* USER CODE BEGIN PD */
 int sindex = 0;
 int adc_highest_seen = 0;
+int hit_low = true;
 int last_tick = 0;
 
 int the_period = 0;
@@ -54,6 +55,7 @@ DMA_HandleTypeDef hdma_dac_ch1;
 
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim7;
 TIM_HandleTypeDef htim17;
 
 UART_HandleTypeDef huart2;
@@ -66,7 +68,7 @@ UART_HandleTypeDef huart2;
  * May also want to send the value out with another DMA that
  * reads from this buffer and sends it out via USART2
  */
-#define ADC_BUFFER_LENGTH 20
+#define ADC_BUFFER_LENGTH 8
 uint16_t adc_buffer[ADC_BUFFER_LENGTH];
 /* USER CODE END PV */
 
@@ -80,6 +82,7 @@ static void MX_TIM2_Init(void);
 static void MX_TIM17_Init(void);
 static void MX_ADC3_Init(void);
 static void MX_TIM3_Init(void);
+static void MX_TIM7_Init(void);
 /* USER CODE BEGIN PFP */
 void SW_SineWave(void * argument);
 
@@ -132,6 +135,7 @@ int main(void)
   MX_TIM17_Init();
   MX_ADC3_Init();
   MX_TIM3_Init();
+  MX_TIM7_Init();
   /* USER CODE BEGIN 2 */
 
   SysTick->LOAD = 79000 - 1;
@@ -141,6 +145,7 @@ int main(void)
 
   HAL_TIM_Base_Start_IT(&htim2);
   HAL_TIM_Base_Start_IT(&htim3); //Timer3 is the ADC Sample trigger
+  HAL_TIM_Base_Start_IT(&htim7); //Timer7 is used to time the period
 
   /* USER CODE END 2 */
 
@@ -439,6 +444,44 @@ static void MX_TIM3_Init(void)
 }
 
 /**
+  * @brief TIM7 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM7_Init(void)
+{
+
+  /* USER CODE BEGIN TIM7_Init 0 */
+
+  /* USER CODE END TIM7_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM7_Init 1 */
+
+  /* USER CODE END TIM7_Init 1 */
+  htim7.Instance = TIM7;
+  htim7.Init.Prescaler = 8000- 1;
+  htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim7.Init.Period = 100;
+  htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim7, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM7_Init 2 */
+
+  /* USER CODE END TIM7_Init 2 */
+
+}
+
+/**
   * @brief TIM17 Initialization Function
   * @param None
   * @retval None
@@ -547,6 +590,9 @@ static void MX_GPIO_Init(void)
                           |SevenSeg_DATA_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(Period_Start_GPIO_Port, Period_Start_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, SevenSeg_LATCH_Pin|LED_D4_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
@@ -583,6 +629,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   GPIO_InitStruct.Alternate = GPIO_AF3_TIM8;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : Period_Start_Pin */
+  GPIO_InitStruct.Pin = Period_Start_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(Period_Start_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : SevenSeg_LATCH_Pin LED_D4_Pin */
   GPIO_InitStruct.Pin = SevenSeg_LATCH_Pin|LED_D4_Pin;
@@ -722,19 +775,23 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc3) {
 	/* When the ADC Buffer is filled, come here and do the edge detect */
-   HAL_GPIO_TogglePin(LED_D4_GPIO_Port, LED_D4_Pin);
+   // HAL_GPIO_TogglePin(LED_D4_GPIO_Port, LED_D4_Pin);
 
    // Read the buffer and update the max
    for (int i=0; i<ADC_BUFFER_LENGTH;i++)
-	   adc_highest_seen = (adc_highest_seen < adc_buffer[i])?adc_buffer[i]:adc_highest_seen;
+	   { adc_highest_seen = (adc_highest_seen < adc_buffer[i])?adc_buffer[i]:adc_highest_seen;}
    /* Kick_off a timer to measure the elapsed time on the edge rising past 90%
     * Look in the buffer and see if [0] is less than 90% and the top element is greater than the 90%
     */
-   if ((adc_buffer[0] < (0.9 * adc_highest_seen)) && (adc_buffer[ADC_BUFFER_LENGTH -1]>=.9 * adc_highest_seen))
+   hit_low = (((adc_buffer[0] < (0.1 * adc_highest_seen)) |  hit_low));
+   if (hit_low & ((adc_buffer[0] < (0.9 * adc_highest_seen)) & (adc_buffer[ADC_BUFFER_LENGTH -1]>=(.9 * adc_highest_seen))))
 		{
-	   the_period = uwTick - last_tick;
-	   last_tick = uwTick ;
-	   int freq = HAL_GetTickFreq();
+		the_period = __HAL_TIM_GetCounter(&htim7);
+		__HAL_TIM_SET_COUNTER(&htim7, 0);
+		// just toggle a pin to use the LA to see how long in real measured time
+		HAL_GPIO_WritePin(Period_Start_GPIO_Port, Period_Start_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(Period_Start_GPIO_Port, Period_Start_Pin, GPIO_PIN_RESET);
+		hit_low = false;
 		}
 
 
