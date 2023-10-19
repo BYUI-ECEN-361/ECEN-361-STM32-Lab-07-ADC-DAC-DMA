@@ -37,6 +37,7 @@ int sindex = 0;
 int adc_highest_seen = 0;
 int hit_low = true;
 int last_tick = 0;
+int this_tick = 0;
 
 int the_period = 0;
 /* USER CODE END PD */
@@ -138,14 +139,14 @@ int main(void)
   MX_TIM7_Init();
   /* USER CODE BEGIN 2 */
 
-  SysTick->LOAD = 79000 - 1;
-  SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
-  HAL_ResumeTick();
+  // SysTick->LOAD = 79000 - 1;
+  // SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
+  // HAL_ResumeTick();
 
 
   HAL_TIM_Base_Start_IT(&htim2);
   HAL_TIM_Base_Start_IT(&htim3); //Timer3 is the ADC Sample trigger
-  HAL_TIM_Base_Start_IT(&htim7); //Timer7 is used to time the period
+  HAL_TIM_Base_Start(&htim7); //Timer7 is used to time the period
 
   /* USER CODE END 2 */
 
@@ -160,7 +161,6 @@ int main(void)
   MultiFunctionShield_Clear();								// Clear the 7-seg display
   HAL_TIM_Base_Start_IT(&htim17);							// LED SevenSeg cycle thru them
   Clear_LEDs();
-  // MultiFunctionShield_Display(points_per_output_wave);
   MultiFunctionShield_Display(points_to_use_in_a_cycle);
 
   /* Setup the DMA */
@@ -461,9 +461,9 @@ static void MX_TIM7_Init(void)
 
   /* USER CODE END TIM7_Init 1 */
   htim7.Instance = TIM7;
-  htim7.Init.Prescaler = 8000- 1;
+  htim7.Init.Prescaler = 40000-1;
   htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim7.Init.Period = 100;
+  htim7.Init.Period = 50000;
   htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
   {
@@ -767,6 +767,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	case Button_3_Pin:
 		// Button_3 changes the Frequency of the DAC, going thru different
 		// speeds
+	  MultiFunctionShield_Display(the_period);
 		break;
 	default:
       __NOP();
@@ -786,12 +787,18 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc3) {
    hit_low = (((adc_buffer[0] < (0.1 * adc_highest_seen)) |  hit_low));
    if (hit_low & ((adc_buffer[0] < (0.9 * adc_highest_seen)) & (adc_buffer[ADC_BUFFER_LENGTH -1]>=(.9 * adc_highest_seen))))
 		{
-		the_period = __HAL_TIM_GetCounter(&htim7);
+	    HAL_TIM_Base_Stop(&htim7); //Timer7 is used to time the period
+		this_tick = TIM7->CNT;
+		the_period = this_tick - last_tick;
+		MX_TIM7_Init();
 		__HAL_TIM_SET_COUNTER(&htim7, 0);
 		// just toggle a pin to use the LA to see how long in real measured time
 		HAL_GPIO_WritePin(Period_Start_GPIO_Port, Period_Start_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(Period_Start_GPIO_Port, Period_Start_Pin, GPIO_PIN_RESET);
+	    int look = uwTick;
+	    last_tick=this_tick;
 		hit_low = false;
+	    HAL_TIM_Base_Start(&htim7); //Timer7 is used to time the period
 		}
 
 
