@@ -61,7 +61,7 @@ UART_HandleTypeDef huart2;
  * May also want to send the value out with another DMA that
  * reads from this buffer and sends it out via USART2
  */
-#define ADC_BUFFER_LENGTH 20
+#define ADC_BUFFER_LENGTH 1000
 uint16_t adc_buffer[ADC_BUFFER_LENGTH];
 /* USER CODE END PV */
 
@@ -267,8 +267,8 @@ static void MX_ADC3_Init(void)
   hadc3.Init.ContinuousConvMode = ENABLE;
   hadc3.Init.NbrOfConversion = 1;
   hadc3.Init.DiscontinuousConvMode = DISABLE;
-  hadc3.Init.ExternalTrigConv = ADC_EXTERNALTRIG_EXT_IT11;
-  hadc3.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
+  hadc3.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc3.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc3.Init.DMAContinuousRequests = ENABLE;
   hadc3.Init.Overrun = ADC_OVR_DATA_PRESERVED;
   hadc3.Init.OversamplingMode = DISABLE;
@@ -325,7 +325,7 @@ static void MX_DAC1_Init(void)
   */
   sConfig.DAC_SampleAndHold = DAC_SAMPLEANDHOLD_DISABLE;
   sConfig.DAC_Trigger = DAC_TRIGGER_T2_TRGO;
-  sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_DISABLE;
+  sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_ENABLE;
   sConfig.DAC_ConnectOnChipPeripheral = DAC_CHIPCONNECT_DISABLE;
   sConfig.DAC_UserTrimming = DAC_TRIMMING_FACTORY;
   if (HAL_DAC_ConfigChannel(&hdac1, &sConfig, DAC_CHANNEL_1) != HAL_OK)
@@ -516,11 +516,11 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : Button_3_Pin PB11 */
-  GPIO_InitStruct.Pin = Button_3_Pin|GPIO_PIN_11;
+  /*Configure GPIO pin : Button_3_Pin */
+  GPIO_InitStruct.Pin = Button_3_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  HAL_GPIO_Init(Button_3_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PC9 */
   GPIO_InitStruct.Pin = GPIO_PIN_9;

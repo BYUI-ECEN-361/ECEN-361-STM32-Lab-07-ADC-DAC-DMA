@@ -134,7 +134,7 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc)
     hdma_adc3.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
     hdma_adc3.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
     hdma_adc3.Init.Mode = DMA_CIRCULAR;
-    hdma_adc3.Init.Priority = DMA_PRIORITY_LOW;
+    hdma_adc3.Init.Priority = DMA_PRIORITY_VERY_HIGH;
     if (HAL_DMA_Init(&hdma_adc3) != HAL_OK)
     {
       Error_Handler();
@@ -221,7 +221,7 @@ void HAL_DAC_MspInit(DAC_HandleTypeDef* hdac)
     hdma_dac_ch1.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
     hdma_dac_ch1.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
     hdma_dac_ch1.Init.Mode = DMA_CIRCULAR;
-    hdma_dac_ch1.Init.Priority = DMA_PRIORITY_VERY_HIGH;
+    hdma_dac_ch1.Init.Priority = DMA_PRIORITY_MEDIUM;
     if (HAL_DMA_Init(&hdma_dac_ch1) != HAL_OK)
     {
       Error_Handler();
