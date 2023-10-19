@@ -34,6 +34,10 @@ void Start_the_DAC_DMA(void);
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 int sindex = 0;
+int adc_highest_seen = 0;
+int last_tick = 0;
+
+int the_period = 0;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -49,6 +53,7 @@ DAC_HandleTypeDef hdac1;
 DMA_HandleTypeDef hdma_dac_ch1;
 
 TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim17;
 
 UART_HandleTypeDef huart2;
@@ -61,7 +66,7 @@ UART_HandleTypeDef huart2;
  * May also want to send the value out with another DMA that
  * reads from this buffer and sends it out via USART2
  */
-#define ADC_BUFFER_LENGTH 1000
+#define ADC_BUFFER_LENGTH 20
 uint16_t adc_buffer[ADC_BUFFER_LENGTH];
 /* USER CODE END PV */
 
@@ -74,6 +79,7 @@ static void MX_DAC1_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM17_Init(void);
 static void MX_ADC3_Init(void);
+static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 void SW_SineWave(void * argument);
 
@@ -125,13 +131,16 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM17_Init();
   MX_ADC3_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 
-
-  // HAL_DAC_Start_DMA(&hdac1,DAC_CHANNEL_1);
+  SysTick->LOAD = 79000 - 1;
+  SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
+  HAL_ResumeTick();
 
 
   HAL_TIM_Base_Start_IT(&htim2);
+  HAL_TIM_Base_Start_IT(&htim3); //Timer3 is the ADC Sample trigger
 
   /* USER CODE END 2 */
 
@@ -267,8 +276,8 @@ static void MX_ADC3_Init(void)
   hadc3.Init.ContinuousConvMode = ENABLE;
   hadc3.Init.NbrOfConversion = 1;
   hadc3.Init.DiscontinuousConvMode = DISABLE;
-  hadc3.Init.ExternalTrigConv = ADC_SOFTWARE_START;
-  hadc3.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc3.Init.ExternalTrigConv = ADC_EXTERNALTRIG_T3_TRGO;
+  hadc3.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
   hadc3.Init.DMAContinuousRequests = ENABLE;
   hadc3.Init.Overrun = ADC_OVR_DATA_PRESERVED;
   hadc3.Init.OversamplingMode = DISABLE;
@@ -381,6 +390,51 @@ static void MX_TIM2_Init(void)
   /* USER CODE BEGIN TIM2_Init 2 */
 
   /* USER CODE END TIM2_Init 2 */
+
+}
+
+/**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 79;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 10;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
 
 }
 
@@ -645,17 +699,6 @@ void change_points_per_cycle()
 
 // Callback: timer has rolled over
 
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-	{
-  if (htim == &htim17 ) { MultiFunctionShield__ISRFunc(); }
-  if (htim == &htim2 )
-		{
-		//HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R,(uint32_t) sineLookup[sindex++]);
-		//HAL_DAC_Start(&hdac1,DAC_CHANNEL_1);
-	  	// int u = 1;
-		// if (sindex >=SINE_WAVE_SAMPLES ) {sindex=0;}
-		}
-	}
 
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
@@ -680,11 +723,55 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc3) {
 	/* When the ADC Buffer is filled, come here and do the edge detect */
    HAL_GPIO_TogglePin(LED_D4_GPIO_Port, LED_D4_Pin);
+
+   // Read the buffer and update the max
+   for (int i=0; i<ADC_BUFFER_LENGTH;i++)
+	   adc_highest_seen = (adc_highest_seen < adc_buffer[i])?adc_buffer[i]:adc_highest_seen;
+   /* Kick_off a timer to measure the elapsed time on the edge rising past 90%
+    * Look in the buffer and see if [0] is less than 90% and the top element is greater than the 90%
+    */
+   if ((adc_buffer[0] < (0.9 * adc_highest_seen)) && (adc_buffer[ADC_BUFFER_LENGTH -1]>=.9 * adc_highest_seen))
+		{
+	   the_period = uwTick - last_tick;
+	   last_tick = uwTick ;
+	   int freq = HAL_GetTickFreq();
+		}
+
+
 }
 
   // HAL_DMA_PollForTransfer(&hdma_memtomem_dma1_channel1, );
 
 /* USER CODE END 4 */
+
+/**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM6 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+	 if (htim == &htim17 ) { MultiFunctionShield__ISRFunc(); }
+	  if (htim == &htim2 )
+			{
+			//HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R,(uint32_t) sineLookup[sindex++]);
+			//HAL_DAC_Start(&hdac1,DAC_CHANNEL_1);
+		  	// int u = 1;
+			// if (sindex >=SINE_WAVE_SAMPLES ) {sindex=0;}
+			}
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM6) {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.
