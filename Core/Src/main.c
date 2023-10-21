@@ -60,6 +60,7 @@ TIM_HandleTypeDef htim7;
 TIM_HandleTypeDef htim17;
 
 UART_HandleTypeDef huart2;
+DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
@@ -71,6 +72,14 @@ UART_HandleTypeDef huart2;
  */
 #define ADC_BUFFER_LENGTH 8
 uint16_t adc_buffer[ADC_BUFFER_LENGTH];
+
+/* This is the formatted string buffer for the converted ADC results
+ * After the buffer full of ADC samples is full, they have to be converted
+ * to ASCII, a string per number that represents the 12-bits per sample
+ *
+ */
+uint8_t adc_results_strings_buffer[ADC_BUFFER_LENGTH];
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -167,12 +176,14 @@ int main(void)
 
   if (HAL_DMA_Init(&hdma_dac_ch1) != HAL_OK)	{while(1);}
   if (HAL_DMA_Init(&hdma_adc3) != HAL_OK)		{while(1);}
+  if (HAL_DMA_Init(&hdma_usart2_tx) != HAL_OK)		{while(1);}
 
 
   Start_the_DAC_DMA();
-
   HAL_ADC_Start_DMA(&hadc3, (uint32_t*) adc_buffer, ADC_BUFFER_LENGTH);
 
+
+//   HAL_StatusTypeDef HAL_UART_Transmit_DMA(UART_HandleTypeDef *huart, const uint8_t *pData, uint16_t Size)
 
    // HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*) sineLookupTable_1000_pts, 1000,DAC_ALIGN_12B_R);
 	   //HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*) sineLookupTable_100_pts, 100,DAC_ALIGN_12B_R);
@@ -779,8 +790,18 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc3) {
    // HAL_GPIO_TogglePin(LED_D4_GPIO_Port, LED_D4_Pin);
 
    // Read the buffer and update the max
+	// Get rid of this zero detect??  Just use time between dac starts
+
+
+
    for (int i=0; i<ADC_BUFFER_LENGTH;i++)
-	   { adc_highest_seen = (adc_highest_seen < adc_buffer[i])?adc_buffer[i]:adc_highest_seen;}
+	   { adc_highest_seen = (adc_highest_seen < adc_buffer[i])?adc_buffer[i]:adc_highest_seen;
+		snprintf((char *) adc_results_strings_buffer,100,"%d\n",adc_buffer[i]);
+		// printf("%d\r\n\r",adc_buffer[i]);
+
+	   }
+
+   HAL_UART_Transmit_DMA((DMA_HandleTypeDef *) &hdma_usart2_tx,adc_results_strings_buffer,ADC_BUFFER_LENGTH);
    /* Kick_off a timer to measure the elapsed time on the edge rising past 90%
     * Look in the buffer and see if [0] is less than 90% and the top element is greater than the 90%
     */
@@ -795,8 +816,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc3) {
 		// just toggle a pin to use the LA to see how long in real measured time
 		HAL_GPIO_WritePin(Period_Start_GPIO_Port, Period_Start_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(Period_Start_GPIO_Port, Period_Start_Pin, GPIO_PIN_RESET);
-	    int look = uwTick;
-	    last_tick=this_tick;
+	    last_tick=this_tick - uwTick;
 		hit_low = false;
 	    HAL_TIM_Base_Start(&htim7); //Timer7 is used to time the period
 		}
