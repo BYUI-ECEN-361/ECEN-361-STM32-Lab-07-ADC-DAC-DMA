@@ -38,6 +38,7 @@ int adc_highest_seen = 0;
 int hit_low = true;
 int last_tick = 0;
 int this_tick = 0;
+uint32_t  prim;
 
 int the_period = 0;
 /* USER CODE END PD */
@@ -56,7 +57,7 @@ DMA_HandleTypeDef hdma_dac_ch1;
 
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
-TIM_HandleTypeDef htim7;
+TIM_HandleTypeDef htim15;
 TIM_HandleTypeDef htim17;
 
 UART_HandleTypeDef huart2;
@@ -92,7 +93,7 @@ static void MX_TIM2_Init(void);
 static void MX_TIM17_Init(void);
 static void MX_ADC3_Init(void);
 static void MX_TIM3_Init(void);
-static void MX_TIM7_Init(void);
+static void MX_TIM15_Init(void);
 /* USER CODE BEGIN PFP */
 void SW_SineWave(void * argument);
 
@@ -107,6 +108,7 @@ int sinewave_table_index = 0;
 enum points_per_cycle {ten=10,hundred=100,thousand=1000};
 enum points_per_cycle points_to_use_in_a_cycle  = thousand;
 
+int AbsoluteTicks = 0;
 
 /* USER CODE END 0 */
 
@@ -117,7 +119,6 @@ enum points_per_cycle points_to_use_in_a_cycle  = thousand;
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -126,6 +127,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
+#define USE_HAL_DAC_REGISTER_CALLBACKS        1U
 
   /* USER CODE END Init */
 
@@ -145,7 +147,7 @@ int main(void)
   MX_TIM17_Init();
   MX_ADC3_Init();
   MX_TIM3_Init();
-  MX_TIM7_Init();
+  MX_TIM15_Init();
   /* USER CODE BEGIN 2 */
 
   // SysTick->LOAD = 79000 - 1;
@@ -155,7 +157,7 @@ int main(void)
 
   HAL_TIM_Base_Start_IT(&htim2);
   HAL_TIM_Base_Start_IT(&htim3); //Timer3 is the ADC Sample trigger
-  HAL_TIM_Base_Start(&htim7); //Timer7 is used to time the period
+  HAL_TIM_Base_Start_IT(&htim15); //Timer6 is an absolute Tick
 
   /* USER CODE END 2 */
 
@@ -455,40 +457,48 @@ static void MX_TIM3_Init(void)
 }
 
 /**
-  * @brief TIM7 Initialization Function
+  * @brief TIM15 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_TIM7_Init(void)
+static void MX_TIM15_Init(void)
 {
 
-  /* USER CODE BEGIN TIM7_Init 0 */
+  /* USER CODE BEGIN TIM15_Init 0 */
 
-  /* USER CODE END TIM7_Init 0 */
+  /* USER CODE END TIM15_Init 0 */
 
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
 
-  /* USER CODE BEGIN TIM7_Init 1 */
+  /* USER CODE BEGIN TIM15_Init 1 */
 
-  /* USER CODE END TIM7_Init 1 */
-  htim7.Instance = TIM7;
-  htim7.Init.Prescaler = 40000-1;
-  htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim7.Init.Period = 50000;
-  htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
+  /* USER CODE END TIM15_Init 1 */
+  htim15.Instance = TIM15;
+  htim15.Init.Prescaler = 79;
+  htim15.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim15.Init.Period = 1000;
+  htim15.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim15.Init.RepetitionCounter = 0;
+  htim15.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim15) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim15, &sClockSourceConfig) != HAL_OK)
   {
     Error_Handler();
   }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim7, &sMasterConfig) != HAL_OK)
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim15, &sMasterConfig) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN TIM7_Init 2 */
+  /* USER CODE BEGIN TIM15_Init 2 */
 
-  /* USER CODE END TIM7_Init 2 */
+  /* USER CODE END TIM15_Init 2 */
 
 }
 
@@ -688,10 +698,19 @@ PUTCHAR_PROTOTYPE
 
 
 void HAL_DAC_ConvCpltCallbackCh1(DAC_HandleTypeDef *hdac)
-{
+	{
 	/* Fill this in when I know what to do if I get here */
-// printf("              FINISHED DAC OUT\n\n");
-}
+	/* We get here when we are starting a new cycle of the analog out
+	 *
+	 */
+	// Toggle a GPIO so I can measure it with a scope
+	HAL_GPIO_WritePin(Period_Start_GPIO_Port, Period_Start_Pin, GPIO_PIN_SET);
+	for(int i=0;i<10;i++);
+	HAL_GPIO_WritePin(Period_Start_GPIO_Port, Period_Start_Pin, GPIO_PIN_RESET);
+	// And set the period
+	the_period = AbsoluteTicks - last_tick;
+	last_tick = AbsoluteTicks;
+	}
 
 
 void SW_SineWave(void * arguments)
@@ -802,15 +821,13 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc3) {
 	   }
 
    HAL_UART_Transmit_DMA((DMA_HandleTypeDef *) &hdma_usart2_tx,adc_results_strings_buffer,ADC_BUFFER_LENGTH);
+
    /* Kick_off a timer to measure the elapsed time on the edge rising past 90%
     * Look in the buffer and see if [0] is less than 90% and the top element is greater than the 90%
-    */
    hit_low = (((adc_buffer[0] < (0.1 * adc_highest_seen)) |  hit_low));
    if (hit_low & ((adc_buffer[0] < (0.9 * adc_highest_seen)) & (adc_buffer[ADC_BUFFER_LENGTH -1]>=(.9 * adc_highest_seen))))
 		{
 	    HAL_TIM_Base_Stop(&htim7); //Timer7 is used to time the period
-		this_tick = TIM7->CNT;
-		the_period = this_tick - last_tick;
 		MX_TIM7_Init();
 		__HAL_TIM_SET_COUNTER(&htim7, 0);
 		// just toggle a pin to use the LA to see how long in real measured time
@@ -819,43 +836,26 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc3) {
 	    last_tick=this_tick - uwTick;
 		hit_low = false;
 	    HAL_TIM_Base_Start(&htim7); //Timer7 is used to time the period
-		}
+	    */
+	}
 
 
-}
 
   // HAL_DMA_PollForTransfer(&hdma_memtomem_dma1_channel1, );
 
-/* USER CODE END 4 */
 
-/**
-  * @brief  Period elapsed callback in non blocking mode
-  * @note   This function is called  when TIM6 interrupt took place, inside
-  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
-  * a global variable "uwTick" used as application time base.
-  * @param  htim : TIM handle
-  * @retval None
-  */
+// Callback: timer has rolled over
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
-  /* USER CODE BEGIN Callback 0 */
-	 if (htim == &htim17 ) { MultiFunctionShield__ISRFunc(); }
-	  if (htim == &htim2 )
-			{
-			//HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R,(uint32_t) sineLookup[sindex++]);
-			//HAL_DAC_Start(&hdac1,DAC_CHANNEL_1);
-		  	// int u = 1;
-			// if (sindex >=SINE_WAVE_SAMPLES ) {sindex=0;}
-			}
+	{ // Check which version of the timer triggered this callback and toggle the right LED
 
-  /* USER CODE END Callback 0 */
-  if (htim->Instance == TIM6) {
-    HAL_IncTick();
-  }
-  /* USER CODE BEGIN Callback 1 */
+	// This timer sets the AbsoluteTicks in milliSeconds.  SYSTICK stops ... :-(
+	 if (htim == &htim15 ) { AbsoluteTicks++; }
 
-  /* USER CODE END Callback 1 */
-}
+	// This timer has to be here to cycle thru the 7-Seg LED displays
+	if (htim == &htim17 ) { MultiFunctionShield__ISRFunc(); }
+	}
+
+/* USER CODE END 4 */
 
 /**
   * @brief  This function is executed in case of error occurrence.
