@@ -40,6 +40,7 @@ int last_tick = 0;
 int this_tick = 0;
 uint32_t  prim;
 
+
 int the_period = 0;
 /* USER CODE END PD */
 
@@ -96,6 +97,8 @@ static void MX_TIM3_Init(void);
 static void MX_TIM15_Init(void);
 /* USER CODE BEGIN PFP */
 void SW_SineWave(void * argument);
+typedef void (*HAL_DMA_CallbackID)(DMA_HandleTypeDef *_hdma); //Pointer to the callback
+void User_DMACompleteCallback(DMA_HandleTypeDef *hdac);
 
 /* USER CODE END PFP */
 
@@ -150,10 +153,6 @@ int main(void)
   MX_TIM15_Init();
   /* USER CODE BEGIN 2 */
 
-  // SysTick->LOAD = 79000 - 1;
-  // SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
-  // HAL_ResumeTick();
-
 
   HAL_TIM_Base_Start_IT(&htim2);
   HAL_TIM_Base_Start_IT(&htim3); //Timer3 is the ADC Sample trigger
@@ -181,8 +180,15 @@ int main(void)
   if (HAL_DMA_Init(&hdma_usart2_tx) != HAL_OK)		{while(1);}
 
 
+
+// HAL_StatusTypeDef HAL_DMA_RegisterCallback(DMA_HandleTypeDef *hdma, HAL_DMA_CallbackIDTypeDef CallbackID, void (* pCallback)(DMA_HandleTypeDef *_hdma));
+//*Tell the DMA interrupt where to go*/
+  HAL_DMA_RegisterCallback(&hdma_dac_ch1, HAL_DAC_CH1_COMPLETE_CB_ID, User_DMACompleteCallback);
+
   Start_the_DAC_DMA();
   HAL_ADC_Start_DMA(&hadc3, (uint32_t*) adc_buffer, ADC_BUFFER_LENGTH);
+
+ //* HAL_UART_RegisterCallback(UART_HandleTypeDef *huart, HAL_UART_CallbackIDTypeDef CallbackID, pUART_CallbackTypeDef pCallback)
 
 
 //   HAL_StatusTypeDef HAL_UART_Transmit_DMA(UART_HandleTypeDef *huart, const uint8_t *pData, uint16_t Size)
@@ -360,7 +366,8 @@ static void MX_DAC1_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN DAC1_Init 2 */
-  // sConfig.DAC_ConnectOnChipPeripheral = DAC_CHIPCONNECT_ENABLE;
+  // HAL_StatusTypeDef HAL_DACEx_SelfCalibrate(DAC_HandleTypeDef *hdac, *sConfig, uint32_t Channel)
+  if (HAL_DACEx_SelfCalibrate(&hdac1, &sConfig, DAC_CHANNEL_1) != HAL_OK) {Error_Handler();}
 
   /* USER CODE END DAC1_Init 2 */
 
@@ -432,7 +439,7 @@ static void MX_TIM3_Init(void)
   htim3.Instance = TIM3;
   htim3.Init.Prescaler = 79;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 10;
+  htim3.Init.Period = 1000;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -697,6 +704,9 @@ PUTCHAR_PROTOTYPE
 
 
 
+
+
+
 void HAL_DAC_ConvCpltCallbackCh1(DAC_HandleTypeDef *hdac)
 	{
 	/* Fill this in when I know what to do if I get here */
@@ -704,9 +714,9 @@ void HAL_DAC_ConvCpltCallbackCh1(DAC_HandleTypeDef *hdac)
 	 *
 	 */
 	// Toggle a GPIO so I can measure it with a scope
-	HAL_GPIO_WritePin(Period_Start_GPIO_Port, Period_Start_Pin, GPIO_PIN_SET);
-	for(int i=0;i<10;i++);
-	HAL_GPIO_WritePin(Period_Start_GPIO_Port, Period_Start_Pin, GPIO_PIN_RESET);
+	// HAL_GPIO_WritePin(Period_Start_GPIO_Port, Period_Start_Pin, GPIO_PIN_SET);
+	// for(int i=0;i<10;i++);
+	// HAL_GPIO_WritePin(Period_Start_GPIO_Port, Period_Start_Pin, GPIO_PIN_RESET);
 	// And set the period
 	the_period = AbsoluteTicks - last_tick;
 	last_tick = AbsoluteTicks;
@@ -820,8 +830,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc3) {
 
 	   }
 
-   HAL_UART_Transmit_DMA((DMA_HandleTypeDef *) &hdma_usart2_tx,adc_results_strings_buffer,ADC_BUFFER_LENGTH);
-
+	//    HAL_UART_Transmit_DMA((DMA_HandleTypeDef *) &hdma_usart2_tx,adc_results_strings_buffer,ADC_BUFFER_LENGTH);
    /* Kick_off a timer to measure the elapsed time on the edge rising past 90%
     * Look in the buffer and see if [0] is less than 90% and the top element is greater than the 90%
    hit_low = (((adc_buffer[0] < (0.1 * adc_highest_seen)) |  hit_low));
@@ -849,10 +858,28 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	{ // Check which version of the timer triggered this callback and toggle the right LED
 
 	// This timer sets the AbsoluteTicks in milliSeconds.  SYSTICK stops ... :-(
+	 if (htim == &htim3 )
+	  { AbsoluteTicks=AbsoluteTicks;
+
+	  /*
+		HAL_GPIO_WritePin(Period_Start_GPIO_Port, Period_Start_Pin, GPIO_PIN_SET);
+		for(int i=0;i<10;i++);
+		HAL_GPIO_WritePin(Period_Start_GPIO_Port, Period_Start_Pin, GPIO_PIN_RESET);
+		*/
+	  }
+
 	 if (htim == &htim15 ) { AbsoluteTicks++; }
 
 	// This timer has to be here to cycle thru the 7-Seg LED displays
 	if (htim == &htim17 ) { MultiFunctionShield__ISRFunc(); }
+	}
+
+
+void User_DMACompleteCallback(DMA_HandleTypeDef *hdac)
+	{
+	HAL_GPIO_WritePin(Period_Start_GPIO_Port, Period_Start_Pin, GPIO_PIN_SET);
+	for(int i=0;i<10;i++);
+	HAL_GPIO_WritePin(Period_Start_GPIO_Port, Period_Start_Pin, GPIO_PIN_RESET);
 	}
 
 /* USER CODE END 4 */
