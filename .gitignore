@@ -2,3 +2,8 @@
 *.o
 *.xml
 *.cyclo
+*.elf
+*.list
+*.map
+Debug/makefile
+*.launch
