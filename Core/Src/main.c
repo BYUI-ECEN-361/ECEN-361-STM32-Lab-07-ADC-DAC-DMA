@@ -2,20 +2,17 @@
 /**
   ******************************************************************************
   * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
+  * @brief          : ECEN-361-Lab-08 ADC-DAC-DMA
   *
-  * Copyright (c) 2023 STMicroelectronics.
-  * All rights reserved.
+  * BYU-Idaho
+  * Fall-2023 :   Lynn Watson
   *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
+  * See the  STUDENTS EDITABLE places below to modify for submission
   *
   ******************************************************************************
   */
 /* USER CODE END Header */
+
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
@@ -72,7 +69,7 @@ DMA_HandleTypeDef hdma_usart2_tx;
  * May also want to send the value out with another DMA that
  * reads from this buffer and sends it out via USART2
  */
-#define ADC_BUFFER_LENGTH 8
+#define ADC_BUFFER_LENGTH 1000
 uint16_t adc_buffer[ADC_BUFFER_LENGTH];
 
 /* This is the formatted string buffer for the converted ADC results
@@ -110,8 +107,6 @@ int sinewave_table_index = 0;
 
 enum points_per_cycle {ten=10,hundred=100,thousand=1000};
 enum points_per_cycle points_to_use_in_a_cycle  = thousand;
-
-int AbsoluteTicks = 0;
 
 /* USER CODE END 0 */
 
@@ -186,37 +181,22 @@ int main(void)
   HAL_DMA_RegisterCallback(&hdma_dac_ch1, HAL_DAC_CH1_COMPLETE_CB_ID, User_DMACompleteCallback);
 
   Start_the_DAC_DMA();
-  HAL_ADC_Start_DMA(&hadc3, (uint32_t*) adc_buffer, ADC_BUFFER_LENGTH);
 
- //* HAL_UART_RegisterCallback(UART_HandleTypeDef *huart, HAL_UART_CallbackIDTypeDef CallbackID, pUART_CallbackTypeDef pCallback)
-
-
-//   HAL_StatusTypeDef HAL_UART_Transmit_DMA(UART_HandleTypeDef *huart, const uint8_t *pData, uint16_t Size)
-
-   // HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*) sineLookupTable_1000_pts, 1000,DAC_ALIGN_12B_R);
-	   //HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*) sineLookupTable_100_pts, 100,DAC_ALIGN_12B_R);
-
-	   //            HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*) sineLookupTable_10_pts, 10,DAC_ALIGN_12B_R);
-
-   // HAL_DMA_Start_IT(&hdma_dac_ch1, (uint32_t) &sineLookupTable_100_pts, (uint32_t) &hdac1, sizeof(sineLookupTable_100_pts));
-   //HAL_DMA_PollForTransfer(&hdma_memtomem_dma1_channel1, );
+  /* For second week, we'll look at the ADC, and the DMA for the USART
+   * HAL_ADC_Start_DMA(&hadc3, (uint32_t*) adc_buffer, ADC_BUFFER_LENGTH);
+   * HAL_UART_RegisterCallback(UART_HandleTypeDef *huart, HAL_UART_CallbackIDTypeDef CallbackID, pUART_CallbackTypeDef pCallback)
+   * HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*) sineLookupTable_1000_pts, 1000,DAC_ALIGN_12B_R);
+   * HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*) sineLookupTable_100_pts, 100,DAC_ALIGN_12B_R);
+   * HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t*) sineLookupTable_10_pts, 10,DAC_ALIGN_12B_R);
+   * HAL_DMA_Start_IT(&hdma_dac_ch1, (uint32_t) &sineLookupTable_100_pts, (uint32_t) &hdac1, sizeof(sineLookupTable_100_pts));
+   * HAL_DMA_PollForTransfer(&hdma_memtomem_dma1_channel1, );
+   */
 
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	 // HAL_Delay(1000);
-	  // HAL_GPIO_TogglePin(LD2_GPIO_Port,LD2_Pin);
-	  // HAL_DMA_PollForTransfer()
-	/*
-	 *
-	  if ((sindex % 100) == 0) printf("Setting value: %d\n\r",sindex);
-	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R,(uint32_t) sineLookup[sindex++]);
-	HAL_DAC_Start(&hdac1,DAC_CHANNEL_1);
-	if (sindex >=SINE_WAVE_SAMPLES ) {sindex=0;}
-	HAL_Delay(1);
-	 */
   }
   /* USER CODE END 3 */
 }
@@ -714,12 +694,13 @@ void HAL_DAC_ConvCpltCallbackCh1(DAC_HandleTypeDef *hdac)
 	 *
 	 */
 	// Toggle a GPIO so I can measure it with a scope
-	// HAL_GPIO_WritePin(Period_Start_GPIO_Port, Period_Start_Pin, GPIO_PIN_SET);
-	// for(int i=0;i<10;i++);
-	// HAL_GPIO_WritePin(Period_Start_GPIO_Port, Period_Start_Pin, GPIO_PIN_RESET);
-	// And set the period
-	the_period = AbsoluteTicks - last_tick;
-	last_tick = AbsoluteTicks;
+	HAL_GPIO_WritePin(Period_Start_GPIO_Port, Period_Start_Pin, GPIO_PIN_SET);
+	for(int i=0;i<10;i++);
+	HAL_GPIO_WritePin(Period_Start_GPIO_Port, Period_Start_Pin, GPIO_PIN_RESET);
+	// And set the period in ms  (global)
+	the_period = uwTick - last_tick;
+	last_tick = uwTick;
+	HAL_DMA_RegisterCallback(&hdma_dac_ch1, HAL_DAC_CH1_COMPLETE_CB_ID, User_DMACompleteCallback);
 	}
 
 
@@ -815,61 +796,20 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 }
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc3) {
-	/* When the ADC Buffer is filled, come here and do the edge detect */
-   // HAL_GPIO_TogglePin(LED_D4_GPIO_Port, LED_D4_Pin);
-
-   // Read the buffer and update the max
-	// Get rid of this zero detect??  Just use time between dac starts
-
-
-
+	// When the ADC Buffer is filled, come here then launch the USART out... week 2 of the lab
+	//
    for (int i=0; i<ADC_BUFFER_LENGTH;i++)
 	   { adc_highest_seen = (adc_highest_seen < adc_buffer[i])?adc_buffer[i]:adc_highest_seen;
 		snprintf((char *) adc_results_strings_buffer,100,"%d\n",adc_buffer[i]);
-		// printf("%d\r\n\r",adc_buffer[i]);
-
+		printf("%d\r\n\r",adc_buffer[i]);
 	   }
-
 	//    HAL_UART_Transmit_DMA((DMA_HandleTypeDef *) &hdma_usart2_tx,adc_results_strings_buffer,ADC_BUFFER_LENGTH);
-   /* Kick_off a timer to measure the elapsed time on the edge rising past 90%
-    * Look in the buffer and see if [0] is less than 90% and the top element is greater than the 90%
-   hit_low = (((adc_buffer[0] < (0.1 * adc_highest_seen)) |  hit_low));
-   if (hit_low & ((adc_buffer[0] < (0.9 * adc_highest_seen)) & (adc_buffer[ADC_BUFFER_LENGTH -1]>=(.9 * adc_highest_seen))))
-		{
-	    HAL_TIM_Base_Stop(&htim7); //Timer7 is used to time the period
-		MX_TIM7_Init();
-		__HAL_TIM_SET_COUNTER(&htim7, 0);
-		// just toggle a pin to use the LA to see how long in real measured time
-		HAL_GPIO_WritePin(Period_Start_GPIO_Port, Period_Start_Pin, GPIO_PIN_SET);
-		HAL_GPIO_WritePin(Period_Start_GPIO_Port, Period_Start_Pin, GPIO_PIN_RESET);
-	    last_tick=this_tick - uwTick;
-		hit_low = false;
-	    HAL_TIM_Base_Start(&htim7); //Timer7 is used to time the period
-	    */
 	}
-
-
-
-  // HAL_DMA_PollForTransfer(&hdma_memtomem_dma1_channel1, );
 
 
 // Callback: timer has rolled over
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	{ // Check which version of the timer triggered this callback and toggle the right LED
-
-	// This timer sets the AbsoluteTicks in milliSeconds.  SYSTICK stops ... :-(
-	 if (htim == &htim3 )
-	  { AbsoluteTicks=AbsoluteTicks;
-
-	  /*
-		HAL_GPIO_WritePin(Period_Start_GPIO_Port, Period_Start_Pin, GPIO_PIN_SET);
-		for(int i=0;i<10;i++);
-		HAL_GPIO_WritePin(Period_Start_GPIO_Port, Period_Start_Pin, GPIO_PIN_RESET);
-		*/
-	  }
-
-	 if (htim == &htim15 ) { AbsoluteTicks++; }
-
 	// This timer has to be here to cycle thru the 7-Seg LED displays
 	if (htim == &htim17 ) { MultiFunctionShield__ISRFunc(); }
 	}
@@ -878,7 +818,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 void User_DMACompleteCallback(DMA_HandleTypeDef *hdac)
 	{
 	HAL_GPIO_WritePin(Period_Start_GPIO_Port, Period_Start_Pin, GPIO_PIN_SET);
-	for(int i=0;i<10;i++);
+	for(int i=0;i<10;i++);	// Just to get a pulse
 	HAL_GPIO_WritePin(Period_Start_GPIO_Port, Period_Start_Pin, GPIO_PIN_RESET);
 	}
 
