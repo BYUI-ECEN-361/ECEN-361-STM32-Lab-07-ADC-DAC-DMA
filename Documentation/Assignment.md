@@ -174,7 +174,7 @@ By adjusting Timer2, you can change the frequency of the sinewave coming from th
   
   <mark>[*answer here*]</mark>
 
-## Extra Credit (5 pts maximum)
+## Ideas for Credit to get to 'A' & Extra-Credit (2 pts for any)
 
 * Note on the analog waveform from the DAC that the nadir (lowest point) of the waveform doesn’t go all the way to 0.0Volts.  It looks to be “clipped” at about 0.6 V.   Explain why :
   
