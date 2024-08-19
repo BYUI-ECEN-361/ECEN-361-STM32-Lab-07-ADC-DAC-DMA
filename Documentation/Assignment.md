@@ -1,4 +1,4 @@
-# ECEN-361 Lab-08: DMAs with ADC/DAC
+# ECEN-361 Lab-07: DMAs with ADC/DAC
 
 ## Introduction and Objectives of the Lab
 
