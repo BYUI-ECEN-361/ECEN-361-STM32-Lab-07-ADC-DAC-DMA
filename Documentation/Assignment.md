@@ -16,7 +16,7 @@ The project, as configured in the repo, is a bare-metal (no FreeRTOS) that is co
 
 ![A diagram of a computer Description automatically generated](media/6321c04db8f8826c91ab690790f96a09.png)
 
-Explore the GUI by opening the  **ECEN-361-STM32-Lab-08-Sampling-Solution.ioc** file to see the configurations.
+Explore the GUI by opening the  **ECEN-361-STM32-Lab-07-ADC-DAC-DMA.ioc** file to see the configurations.
 
 ![](media/1b018b510926cd98311a9dab20855cf5.png)
 
@@ -59,7 +59,7 @@ We’ll compare the outputs of using different points/sample in this lab.
 
 2. Run the code.
    
-   Your board should show “1000” on the 7-seg display
+   Your board should show “10” on the 7-seg display
    
    The 7-Seg LEDs indicate which of the points-per-cycle table is being used to output the DAC waveform.:10, 100, 1000. These values are cycled by pressing **S1**.   
    
@@ -174,17 +174,19 @@ By adjusting Timer2, you can change the frequency of the sinewave coming from th
   
   <mark>[*answer here*]</mark>
 
-## Ideas for Credit to get to 'A' & Extra-Credit (2 pts for any)
-
 * Note on the analog waveform from the DAC that the nadir (lowest point) of the waveform doesn’t go all the way to 0.0Volts.  It looks to be “clipped” at about 0.6 V.   Explain why :
   
   <mark>[*answer here*]</mark>
+## Ideas for Credit to get to 'A' & Extra-Credit (2 pts for any)
 
 * Doing a S/W-only solution to output the values to the DAC (Called: “Programmed I/O”) requires a simple loop of :
   
   a.    Read the next digital out from the table
+
   b.    Output it to the DAC
+  
   c.    Poll to see if the DAC conversion is done
+  
   d.    Repeat
   
     Write a procedure of the non-DMA version of the wave generator and see how fast you can make the frequency.  Comments about it:
@@ -194,3 +196,5 @@ By adjusting Timer2, you can change the frequency of the sinewave coming from th
 * We used Timer2 as a trigger to define the timing between each waveform point. Can the DMA control be modified so that it runs continuously without a trigger? How would you do this? Show a screenshot of code snippet of your approach.
   
   <mark>[*answer here*]</mark>
+
+* Modify the Buffers to output a different type of waveform, such as a triangle or sawtooth wave. Explain how you did it, as well as show a screenshot of your waveform from the logic analyzer.

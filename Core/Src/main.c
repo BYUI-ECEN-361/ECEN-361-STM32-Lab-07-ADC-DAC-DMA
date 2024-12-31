@@ -12,7 +12,6 @@
   ******************************************************************************
   */
 /* USER CODE END Header */
-
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
@@ -106,7 +105,7 @@ void User_DMACompleteCallback(DMA_HandleTypeDef *hdac);
 int sinewave_table_index = 0;
 
 enum points_per_cycle {ten=10,hundred=100,thousand=1000};
-enum points_per_cycle points_to_use_in_a_cycle  = thousand;
+enum points_per_cycle points_to_use_in_a_cycle  = ten;
 
 /* USER CODE END 0 */
 
@@ -116,6 +115,7 @@ enum points_per_cycle points_to_use_in_a_cycle  = thousand;
   */
 int main(void)
 {
+
   /* USER CODE BEGIN 1 */
   /* USER CODE END 1 */
 
@@ -419,7 +419,7 @@ static void MX_TIM3_Init(void)
   htim3.Instance = TIM3;
   htim3.Init.Prescaler = 79;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 1000;
+  htim3.Init.Period = 10;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
