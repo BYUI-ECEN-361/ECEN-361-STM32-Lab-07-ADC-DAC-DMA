@@ -189,7 +189,7 @@ By adjusting Timer2, you can change the frequency of the sinewave coming from th
   
   d.    Repeat
   
-    Write a procedure of the non-DMA version of the wave generator and see how fast you can make the frequency.  Comments about it:
+    Write a procedure of the non-DMA version of the wave generator and see how fast you can make the frequency.  Share comments about it:
   
   <mark>[*answer here*]</mark>
 
@@ -198,3 +198,5 @@ By adjusting Timer2, you can change the frequency of the sinewave coming from th
   <mark>[*answer here*]</mark>
 
 * Modify the Buffers to output a different type of waveform, such as a triangle or sawtooth wave. Explain how you did it, as well as show a screenshot of your waveform from the logic analyzer.
+    
+  <mark>[*answer here*]</mark>
